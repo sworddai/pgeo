@@ -40,6 +40,7 @@ import {
   readFileAsBase64,
   readFileAsPDFText,
 } from "@/utils/fileHandling";
+import type { ReactNode } from "react";
 
 // Types
 interface Message {
@@ -47,12 +48,7 @@ interface Message {
   role: string;
   content: string;
   hasToolUse?: boolean;
-  file?: {
-    base64: string;
-    fileName: string;
-    mediaType: string;
-    isText?: boolean;
-  };
+  files?: FileUpload[];
   chartData?: ChartData;
 }
 
@@ -89,6 +85,12 @@ interface APIResponse {
 
 interface MessageComponentProps {
   message: Message;
+}
+
+interface ChartPaginationProps {
+  total: number;
+  current: number;
+  onDotClick: (index: number) => void;
 }
 
 const SafeChartRenderer: React.FC<{ data: ChartData }> = ({ data }) => {
@@ -159,9 +161,22 @@ const MessageComponent: React.FC<MessageComponentProps> = ({ message }) => {
             <span>{message.content}</span>
           )}
         </div>
-        {message.file && (
+        {message.files && message.files.length > 0 && (
           <div className="mt-1.5">
-            <FilePreview file={message.file} size="small" />
+            <div className="flex gap-2 flex-wrap">
+              {message.files.map((upload, index) => (
+                <FilePreview
+                  key={index}
+                  file={upload}
+                  onRemove={() =>
+                    message.files && message.files.length > 0
+                      ? message.files.filter((_, i: number) => i !== index)
+                      : undefined
+                  }
+                  size="small"
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -169,14 +184,10 @@ const MessageComponent: React.FC<MessageComponentProps> = ({ message }) => {
   );
 };
 
-const ChartPagination = ({
+const ChartPagination: React.FC<ChartPaginationProps> = ({
   total,
   current,
   onDotClick,
-}: {
-  total: number;
-  current: number;
-  onDotClick: (index: number) => void;
 }) => (
   <div className="fixed right-12 top-1/2 -translate-y-1/2 flex flex-col gap-2">
     {Array.from({ length: total }).map((_, i) => (
@@ -203,7 +214,7 @@ export default function AIChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chartEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [currentUpload, setCurrentUpload] = useState<FileUpload | null>(null);
+  const [currentUploads, setCurrentUploads] = useState<FileUpload[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [currentChartIndex, setCurrentChartIndex] = useState(0);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -279,97 +290,79 @@ export default function AIChat() {
   }, [messages]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     setIsUploading(true);
 
-    // Create a ref to store the toast handlers
-    let loadingToastRef: { dismiss: () => void } | undefined;
-
-    if (file.type === "application/pdf") {
-      loadingToastRef = toast({
-        title: "Processing PDF",
-        description: "Extracting text content...",
-        duration: Infinity, // This will keep the toast until we dismiss it
-      });
-    }
-
     try {
-      const isImage = file.type.startsWith("image/");
-      const isPDF = file.type === "application/pdf";
-      let base64Data = "";
-      let isText = false;
+      // Process all selected files concurrently
+      const uploads: FileUpload[] = await Promise.all(
+        Array.from(files).map(async (file: File) => {
+          let base64Data = "";
+          let isText = false;
+          const isImage = file.type.startsWith("image/");
+          const isPDF = file.type === "application/pdf";
 
-      if (isImage) {
-        base64Data = await readFileAsBase64(file);
-        isText = false;
-      } else if (isPDF) {
-        try {
-          const pdfText = await readFileAsPDFText(file);
-          base64Data = btoa(encodeURIComponent(pdfText));
-          isText = true;
-        } catch (error) {
-          console.error("Failed to parse PDF:", error);
-          toast({
-            title: "PDF parsing failed",
-            description: "Unable to extract text from the PDF",
-            variant: "destructive",
-          });
-          return;
-        }
-      } else {
-        try {
-          const textContent = await readFileAsText(file);
-          base64Data = btoa(encodeURIComponent(textContent));
-          isText = true;
-        } catch (error) {
-          console.error("Failed to read as text:", error);
-          toast({
-            title: "Invalid file type",
-            description: "File must be readable as text, PDF, or be an image",
-            variant: "destructive",
-          });
-          return;
-        }
-      }
+          if (isImage) {
+            base64Data = await readFileAsBase64(file);
+            isText = false;
+          } else if (isPDF) {
+            try {
+              const pdfText = await readFileAsPDFText(file);
+              base64Data = btoa(encodeURIComponent(pdfText));
+              isText = true;
+            } catch (error) {
+              console.error("Failed to parse PDF:", error);
+              toast({
+                title: "PDF parsing failed",
+                description: "Unable to extract text from the PDF",
+                variant: "destructive",
+              });
+              throw error;
+            }
+          } else {
+            try {
+              const textContent = await readFileAsText(file);
+              base64Data = btoa(encodeURIComponent(textContent));
+              isText = true;
+            } catch (error) {
+              console.error("Failed to read as text:", error);
+              toast({
+                title: "Invalid file type",
+                description: "File must be readable as text, PDF, or be an image",
+                variant: "destructive",
+              });
+              throw error;
+            }
+          }
 
-      setCurrentUpload({
-        base64: base64Data,
-        fileName: file.name,
-        mediaType: isText ? "text/plain" : file.type,
-        isText,
-      });
+          return {
+            base64: base64Data,
+            fileName: file.name,
+            mediaType: isText ? "text/plain" : file.type,
+            isText,
+            fileSize: file.size,
+          };
+        })
+      );
 
+      // Update state with all uploads
+      setCurrentUploads(uploads);
       toast({
-        title: "File uploaded",
-        description: `${file.name} ready to analyze`,
+        title: "Files uploaded",
+        description: `${uploads.map((u) => u.fileName).join(", ")} ready to analyze`,
       });
     } catch (error) {
-      console.error("Error processing file:", error);
-      toast({
-        title: "Upload failed",
-        description: "Failed to process the file",
-        variant: "destructive",
-      });
+      console.error("Error processing files:", error);
     } finally {
       setIsUploading(false);
-      if (loadingToastRef) {
-        loadingToastRef.dismiss(); // Use the dismiss method from the toast ref
-        // Show success toast for PDF
-        if (file.type === "application/pdf") {
-          toast({
-            title: "PDF Processed",
-            description: "Text extracted successfully",
-          });
-        }
-      }
     }
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!input.trim() && !currentUpload) return;
+    if (!input.trim() && currentUploads.length === 0) return;
     if (isLoading) return;
 
     setIsScrollLocked(true);
@@ -378,7 +371,7 @@ export default function AIChat() {
       id: crypto.randomUUID(),
       role: "user",
       content: input,
-      file: currentUpload || undefined,
+      files: currentUploads.length > 0 ? currentUploads : undefined,
     };
 
     const thinkingMessage: Message = {
@@ -394,36 +387,38 @@ export default function AIChat() {
 
     // Prepare all messages for the API request
     const apiMessages = [...messages, userMessage].map((msg) => {
-      if (msg.file) {
-        if (msg.file.isText) {
-          // For text files, decode the content before sending
-          const decodedText = decodeURIComponent(atob(msg.file.base64));
-          return {
-            role: msg.role,
-            content: `File contents of ${msg.file.fileName}:\n\n${decodedText}\n\n${msg.content}`,
-          };
-        } else {
-          // Handle images as before
-          return {
-            role: msg.role,
-            content: [
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: msg.file.mediaType,
-                  data: msg.file.base64,
-                },
+      if (msg.files && msg.files.length > 0) {
+        // For messages with multiple file attachments,
+        // create an array of attachment blocks for each file.
+        const attachments = msg.files.map((file) => {
+          if (file.isText) {
+            const decodedText = decodeURIComponent(atob(file.base64));
+            return {
+              type: "text",
+              text: `File contents of ${file.fileName}:\n\n${decodedText}`,
+            };
+          } else {
+            return {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: file.mediaType,
+                data: file.base64,
               },
-              {
-                type: "text",
-                text: msg.content,
-              },
-            ],
-          };
-        }
+            };
+          }
+        });
+        // Append the original user message content at the end
+        attachments.push({
+          type: "text",
+          text: msg.content,
+        });
+        return {
+          role: msg.role,
+          content: attachments,
+        };
       }
-      // Handle text-only messages
+      // Text-only message
       return {
         role: msg.role,
         content: msg.content,
@@ -463,7 +458,7 @@ export default function AIChat() {
         return newMessages;
       });
 
-      setCurrentUpload(null);
+      setCurrentUploads([]);
     } catch (error) {
       console.error("Submit Error:", error);
       setMessages((prev) => {
@@ -492,7 +487,7 @@ export default function AIChat() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (input.trim() || currentUpload) {
+      if (input.trim() || currentUploads.length > 0) {
         const form = e.currentTarget.form;
         if (form) {
           const submitEvent = new Event("submit", {
@@ -629,11 +624,19 @@ export default function AIChat() {
           <CardFooter className="p-4 border-t">
             <form onSubmit={handleSubmit} className="w-full">
               <div className="flex flex-col space-y-2">
-                {currentUpload && (
-                  <FilePreview
-                    file={currentUpload}
-                    onRemove={() => setCurrentUpload(null)}
-                  />
+                {currentUploads.length > 0 && (
+                  <div className="flex gap-2 flex-wrap">
+                    {currentUploads.map((upload, index) => (
+                      <FilePreview
+                        key={index}
+                        file={upload}
+                        onRemove={() =>
+                          setCurrentUploads((prev) => prev.filter((_, i) => i !== index))
+                        }
+                        size="small"
+                      />
+                    ))}
+                  </div>
                 )}
                 <div className="flex items-end space-x-2">
                   <div className="flex-1 relative">
@@ -659,7 +662,7 @@ export default function AIChat() {
                   </div>
                   <Button
                     type="submit"
-                    disabled={isLoading || (!input.trim() && !currentUpload)}
+                    disabled={isLoading || (!input.trim() && currentUploads.length === 0)}
                     className="h-[44px]"
                   >
                     <Send className="h-4 w-4" />
@@ -670,6 +673,7 @@ export default function AIChat() {
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
+                multiple
                 onChange={handleFileSelect}
               />
             </form>
