@@ -118,7 +118,10 @@ const MessageComponent: React.FC<MessageComponentProps> = ({ message }) => {
     <div className="flex items-start gap-2">
       {message.role === "assistant" && (
         <Avatar className="w-8 h-8 border">
-          <AvatarImage src="/ant-logo.svg" alt="AI Assistant Avatar" />
+          <AvatarImage
+            src="/brain-circuit.svg"
+            alt="AI Assistant"
+          />
           <AvatarFallback>AI</AvatarFallback>
         </Avatar>
       )}
@@ -140,19 +143,19 @@ const MessageComponent: React.FC<MessageComponentProps> = ({ message }) => {
               {message.hasToolUse ? (
                 <div className="flex flex-col gap-2">
                   <Badge variant="secondary" className="inline-flex">
-                    <ChartLine className="w-4 h-4 mr-1" /> Generated Chart
+                    <ChartLine className="w-4 h-4 mr-1" /> Δημιουργία Γραφήματος
                   </Badge>
-                  <span>Thinking...</span>
+                  <span>Σκέφτομαι...</span>
                 </div>
               ) : (
-                <span>Thinking...</span>
+                <span>Σκέφτομαι...</span>
               )}
             </div>
           ) : message.role === "assistant" ? (
             <div className="flex flex-col gap-2">
               {message.hasToolUse && (
                 <Badge variant="secondary" className="inline-flex px-0">
-                  <ChartLine className="w-4 h-4 mr-1" /> Generated Chart
+                  <ChartLine className="w-4 h-4 mr-1" /> Δημιουργία Γραφήματος
                 </Badge>
               )}
               <span>{message.content}</span>
@@ -315,8 +318,8 @@ export default function AIChat() {
             } catch (error) {
               console.error("Failed to parse PDF:", error);
               toast({
-                title: "PDF parsing failed",
-                description: "Unable to extract text from the PDF",
+                title: "Αποτυχία ανάγνωσης PDF",
+                description: "Δεν ήταν δυνατή η εξαγωγή κειμένου από το PDF",
                 variant: "destructive",
               });
               throw error;
@@ -329,8 +332,8 @@ export default function AIChat() {
             } catch (error) {
               console.error("Failed to read as text:", error);
               toast({
-                title: "Invalid file type",
-                description: "File must be readable as text, PDF, or be an image",
+                title: "Μη έγκυρος τύπος αρχείου",
+                description: "Το αρχείο πρέπει να είναι αναγνώσιμο ως κείμενο, PDF ή εικόνα",
                 variant: "destructive",
               });
               throw error;
@@ -350,8 +353,8 @@ export default function AIChat() {
       // Update state with all uploads
       setCurrentUploads(uploads);
       toast({
-        title: "Files uploaded",
-        description: `${uploads.map((u) => u.fileName).join(", ")} ready to analyze`,
+        title: "Τα αρχεία μεταφορτώθηκαν",
+        description: `${uploads.map((u) => u.fileName).join(", ")} έτοιμα για ανάλυση`,
       });
     } catch (error) {
       console.error("Error processing files:", error);
@@ -527,18 +530,15 @@ export default function AIChat() {
                   <>
                     <Avatar className="w-8 h-8 border">
                       <AvatarImage
-                        src="/ant-logo.svg"
-                        alt="AI Assistant Avatar"
+                        src="/brain-circuit.svg"
+                        alt="AI Assistant"
                       />
                       <AvatarFallback>AI</AvatarFallback>
                     </Avatar>
                     <div>
                       <CardTitle className="text-lg">
-                        Financial Assistant
+                        Medical Data Analyst
                       </CardTitle>
-                      <CardDescription className="text-xs">
-                        Powered by Claude
-                      </CardDescription>
                     </div>
                   </>
                 )}
@@ -570,35 +570,35 @@ export default function AIChat() {
               <div className="flex flex-col items-center justify-center h-full animate-fade-in-up max-w-[95%] mx-auto">
                 <Avatar className="w-10 h-10 mb-4 border">
                   <AvatarImage
-                    src="/ant-logo.svg"
-                    alt="AI Assistant Avatar"
+                    src="/brain-circuit.svg"
+                    alt="AI Assistant"
                     width={40}
                     height={40}
                   />
                 </Avatar>
                 <h2 className="text-xl font-semibold mb-2">
-                  Financial Assistant
+                  Medical Data Analyst
                 </h2>
                 <div className="space-y-4 text-base">
                   <div className="flex items-center gap-3">
                     <ChartArea className="text-muted-foreground w-6 h-6" />
                     <p className="text-muted-foreground">
-                      I can analyze financial data and create visualizations
-                      from your files.
+                      Μπορώ να αναλύσω ιατρικά δεδομένα και να δημιουργήσω οπτικοποιήσεις
+                      από τα αρχεία σας.
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <FileInput className="text-muted-foreground w-6 h-6" />
                     <p className="text-muted-foreground">
-                      Upload CSVs, PDFs, or images and I&apos;ll help you
-                      understand the data.
+                      Ανεβάστε αρχεία CSV, PDF ή εικόνες και θα σας βοηθήσω να
+                      κατανοήσετε τα ιατρικά δεδομένα.
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <MessageCircleQuestion className="text-muted-foreground w-6 h-6" />
                     <p className="text-muted-foreground">
-                      Ask questions about your financial data and I&apos;ll
-                      create insightful charts.
+                      Κάντε ερωτήσεις σχετικά με τα ιατρικά σας δεδομένα και θα
+                      δημιουργήσω διορατικά γραφήματα.
                     </p>
                   </div>
                 </div>
@@ -654,7 +654,7 @@ export default function AIChat() {
                       value={input}
                       onChange={handleInputChange}
                       onKeyDown={handleKeyDown}
-                      placeholder="Type your message..."
+                      placeholder="Γράψτε το μήνυμά σας..."
                       disabled={isLoading}
                       className="min-h-[44px] h-[44px] resize-none pl-12 py-3 flex items-center"
                       rows={1}
@@ -685,7 +685,7 @@ export default function AIChat() {
           {messages.some((m) => m.chartData) && (
             <CardHeader className="py-3 px-4 shrink-0">
               <CardTitle className="text-lg">
-                Analysis & Visualizations
+                Ιατρική Ανάλυση & Οπτικοποιήσεις
               </CardTitle>
             </CardHeader>
           )}
@@ -720,16 +720,16 @@ export default function AIChat() {
                   <ChartColumnBig className="w-8 h-8 text-muted-foreground" />
                   <div className="space-y-2">
                     <CardTitle className="text-lg">
-                      Analysis & Visualizations
+                      Ιατρική Ανάλυση & Οπτικοποιήσεις
                     </CardTitle>
                     <CardDescription className="text-base">
-                      Charts and detailed analysis will appear here as you chat
+                      Τα γραφήματα και η λεπτομερής ιατρική ανάλυση θα εμφανιστούν εδώ καθώς συνομιλείτε
                     </CardDescription>
                     <div className="flex flex-wrap justify-center gap-2 mt-4">
-                      <Badge variant="outline">Bar Charts</Badge>
-                      <Badge variant="outline">Area Charts</Badge>
-                      <Badge variant="outline">Linear Charts</Badge>
-                      <Badge variant="outline">Pie Charts</Badge>
+                      <Badge variant="outline">Ραβδογράμματα</Badge>
+                      <Badge variant="outline">Γραφήματα Περιοχής</Badge>
+                      <Badge variant="outline">Γραμμικά Γραφήματα</Badge>
+                      <Badge variant="outline">Κυκλικά Διαγράμματα</Badge>
                     </div>
                   </div>
                 </div>
